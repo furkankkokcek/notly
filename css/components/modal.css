@@ -1,0 +1,233 @@
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 8px;
+}
+
+.modal-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+  flex: 1;
+  text-align: center;
+}
+
+.btn-close,
+.btn-back {
+  font-size: 18px;
+  padding: 4px 6px;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-close:hover,
+.btn-back:hover {
+  color: var(--text);
+}
+
+/* Type selector */
+.type-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.type-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  text-align: left;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.type-option:hover {
+  border-color: var(--accent);
+  background: var(--surface2);
+}
+
+.type-option .type-icon {
+  font-size: 26px;
+}
+
+/* Note editor */
+.note-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+#note-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+/* Checklist editor */
+#checklist-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 8px;
+}
+
+.checklist-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.checklist-item-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.checklist-item-row .item-text-input {
+  flex: 1;
+}
+
+.checklist-item-row.done .item-text-input {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.add-item-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.add-item-row input {
+  flex: 1;
+}
+
+.btn-add-item {
+  padding: 8px 14px;
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: 14px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.btn-add-item:hover {
+  background: var(--accent);
+  color: white;
+  border-style: solid;
+}
+
+.btn-item-delete {
+  color: var(--danger);
+  opacity: 0.3;
+  padding: 4px;
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.btn-item-delete:hover {
+  opacity: 1;
+}
+
+/* Dimension editor */
+#dim-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 8px;
+}
+
+.dim-item-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.dim-label {
+  flex: 2;
+}
+
+.dim-value {
+  flex: 1.5;
+}
+
+.dim-unit {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Save button */
+.btn-save {
+  padding: 13px;
+  background: var(--accent);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  font-weight: 600;
+  width: 100%;
+  transition: background 0.15s;
+  margin-top: 4px;
+}
+
+.btn-save:hover {
+  background: var(--accent-light);
+}
+
+/* Settings */
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+}
+
+.btn-toggle {
+  padding: 7px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+
+.btn-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-danger {
+  padding: 7px 16px;
+  background: var(--danger);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+
+.btn-danger:hover {
+  opacity: 0.85;
+}
+
+.setting-footer {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 12px 0 4px;
+}

@@ -1,0 +1,131 @@
+.card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 110px;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+}
+
+.card.pinned {
+  border-color: var(--accent);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.type-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.card-title {
+  font-weight: 600;
+  font-size: 14px;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-pin {
+  flex-shrink: 0;
+  font-size: 13px;
+  opacity: 0.25;
+  padding: 2px;
+  transition: opacity 0.15s;
+}
+
+.btn-pin:hover,
+.btn-pin.active {
+  opacity: 1;
+}
+
+.card-preview {
+  font-size: 13px;
+  color: var(--text-muted);
+  flex: 1;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
+.preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.preview-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preview-item.done {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+.preview-more {
+  font-size: 11px;
+  font-style: italic;
+  opacity: 0.6;
+  margin-top: 2px;
+}
+
+.progress-text {
+  font-size: 11px;
+  color: var(--accent);
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.dim-row {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+
+.card-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.btn-delete {
+  font-size: 14px;
+  opacity: 0;
+  padding: 2px;
+  transition: opacity 0.15s;
+}
+
+.card:hover .btn-delete {
+  opacity: 0.35;
+}
+
+.btn-delete:hover {
+  opacity: 1 !important;
+  color: var(--danger);
+}

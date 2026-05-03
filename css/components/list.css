@@ -1,0 +1,39 @@
+/* Standalone list view styles for future full-screen note view */
+.list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  border: 1.5px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.list-item:hover {
+  border-color: var(--border);
+}
+
+.list-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.list-item-text {
+  flex: 1;
+  font-size: 15px;
+}
+
+.list-item.checked .list-item-text {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
