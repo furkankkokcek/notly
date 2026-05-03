@@ -18,13 +18,13 @@
   <header id="app-header"></header>
   <main id="main-content"></main>
 
-  <div class="mo" id="note-modal">
+  <div class="mo" id="note-modal" onclick="if(event.target===this)closeNoteModal()">
     <div class="ms">
       <div id="note-modal-content"></div>
     </div>
   </div>
 
-  <div class="mo" id="settings-modal">
+  <div class="mo" id="settings-modal" onclick="if(event.target===this)closeSettings()">
     <div class="ms">
       <div id="settings-content"></div>
     </div>

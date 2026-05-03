@@ -97,3 +97,50 @@ main {
     max-height: 82vh;
   }
 }
+
+/* Export reminder banner */
+.export-banner {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  z-index: 150;
+  box-shadow: var(--shadow);
+  max-width: calc(100vw - 32px);
+  white-space: nowrap;
+}
+
+.export-banner button {
+  padding: 6px 14px;
+  background: var(--accent);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.export-banner button:hover {
+  background: var(--accent-light);
+}
+
+.export-banner .btn-dismiss {
+  background: transparent;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  font-size: 15px;
+}
+
+.export-banner .btn-dismiss:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
