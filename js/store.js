@@ -2,7 +2,6 @@ const DEFAULT_STATE = {
   notes: [],
   theme: 'dark',
   filter: 'all',
-  tagFilter: null,
 };
 
 let S = {};

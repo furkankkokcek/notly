@@ -2,7 +2,6 @@ function renderHome() {
   const main = document.getElementById('main-content');
   const filtered = S.notes.filter(n => {
     if (S.filter !== 'all' && n.type !== S.filter) return false;
-    if (S.tagFilter && !(n.tags || []).includes(S.tagFilter)) return false;
     return true;
   });
   const sorted = [...filtered].sort((a, b) => {

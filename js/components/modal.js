@@ -1,8 +1,21 @@
-let editingNoteId  = null;
-let _draftItems    = [];
-let _draftColor    = null;
-let _draftTags     = [];
-let _currentType   = null;
+let editingNoteId    = null;
+let _draftItems      = [];
+let _draftColor      = null;
+let _currentType     = null;
+let _dragIdx         = null;
+let _checklistMode   = 'task'; // 'task' | 'shopping'
+
+const DEFAULT_SHOPPING_CATEGORIES = [
+  'Meyve ve Sebzeler',
+  'Süt ve Süt Ürünleri (Kahvaltılık)',
+  'Et, Tavuk ve Balık Ürünleri',
+  'Kuru Gıda ve Bakliyat',
+  'Kahvaltılık ve Atıştırmalık',
+  'İçecekler',
+  'Temizlik ve Kişisel Bakım',
+  'Ekmek ve Unlu Mamuller',
+  'Dondurulmuş Gıdalar',
+];
 let _autoSaveTimer = null;
 let _detectTimer   = null;
 
@@ -16,13 +29,35 @@ const NOTE_COLORS = [
   { id: 'rose',   hex: '#ec4899', label: 'Pembe'      },
 ];
 
+function buildListSubtypeHtml() {
+  return `
+    <div class="list-subtype-row">
+      <button class="list-subtype-btn ${_checklistMode === 'task' ? 'active' : ''}"
+        onclick="setChecklistMode('task')">✅ Görev Listesi</button>
+      <button class="list-subtype-btn ${_checklistMode === 'shopping' ? 'active' : ''}"
+        onclick="setChecklistMode('shopping')">🛒 Alışveriş Listesi</button>
+    </div>
+  `;
+}
+
+function setChecklistMode(mode) {
+  _checklistMode = mode;
+  document.querySelectorAll('.list-subtype-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.includes(mode === 'shopping' ? 'Alışveriş' : 'Görev'));
+  });
+  _draftItems = mode === 'shopping'
+    ? DEFAULT_SHOPPING_CATEGORIES.map(text => ({ type: 'header', text }))
+    : [];
+  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+}
+
 // ── Open / close ──────────────────────────────────────────────────────────────
 
 function openNewNote() {
-  editingNoteId = null;
-  _draftItems   = [];
-  _draftColor   = null;
-  _draftTags    = [];
+  editingNoteId  = null;
+  _draftItems    = [];
+  _draftColor    = null;
+  _checklistMode = 'task';
   showTypeSelector();
   document.getElementById('note-modal').classList.add('open');
 }
@@ -33,19 +68,31 @@ function openNote(id) {
   if (!note) return;
   _draftItems = JSON.parse(JSON.stringify(note.items || []));
   _draftColor = note.color || null;
-  _draftTags  = [...(note.tags || [])];
   renderNoteEditor(note.type, note);
   document.getElementById('note-modal').classList.add('open');
 }
 
 function closeNoteModal() {
   clearTimeout(_autoSaveTimer);
+  _clearModalColor();
   document.getElementById('note-modal').classList.remove('open');
   editingNoteId = null;
   _draftItems   = [];
   _draftColor   = null;
-  _draftTags    = [];
   _currentType  = null;
+}
+
+function _applyModalColor(colorId) {
+  const ms = document.querySelector('#note-modal .ms');
+  if (!ms) return;
+  NOTE_COLORS.forEach(c => { if (c.id) ms.classList.remove('modal-color-' + c.id); });
+  if (colorId) ms.classList.add('modal-color-' + colorId);
+}
+
+function _clearModalColor() {
+  const ms = document.querySelector('#note-modal .ms');
+  if (!ms) return;
+  NOTE_COLORS.forEach(c => { if (c.id) ms.classList.remove('modal-color-' + c.id); });
 }
 
 // ── Type selector ─────────────────────────────────────────────────────────────
@@ -61,8 +108,8 @@ function showTypeSelector() {
       <button class="type-option" onclick="_draftItems=[];renderNoteEditor('text')">
         <span class="type-icon">📝</span><span>Metin Notu</span>
       </button>
-      <button class="type-option" onclick="_draftItems=[];renderNoteEditor('checklist')">
-        <span class="type-icon">✅</span><span>Alışveriş / Görev Listesi</span>
+      <button class="type-option" onclick="_draftItems=[];_checklistMode='task';renderNoteEditor('checklist')">
+        <span class="type-icon">✅</span><span>Liste</span>
       </button>
       <button class="type-option" onclick="_draftItems=[];renderNoteEditor('dimension')">
         <span class="type-icon">📐</span><span>Ölçüler</span>
@@ -89,7 +136,8 @@ function renderNoteEditor(type, note = null) {
       ${isEdit ? 'oninput="_scheduleAutoSave()"' : ''}
     >${note ? escHtml(note.content || '') : ''}</textarea>`;
   } else if (type === 'checklist') {
-    body = buildChecklistEditorHtml();
+    const subtypeBar = !note ? buildListSubtypeHtml() : '';
+    body = subtypeBar + buildChecklistEditorHtml();
   } else if (type === 'dimension') {
     body = buildDimEditorHtml();
   }
@@ -109,91 +157,71 @@ function renderNoteEditor(type, note = null) {
     <div class="note-editor" onclick="if(!event.target.closest('.checklist-item-row,.section-header-row,.dim-item-row'))_deactivateAllRows()">
       <input type="text" id="note-title" class="note-title-input" placeholder="Başlık"
         value="${titleVal}" ${isEdit ? 'oninput="_scheduleAutoSave()"' : ''}>
-      ${buildColorPickerHtml(_draftColor)}
-      ${buildTagsEditorHtml(_draftTags)}
       ${body}
       ${actionArea}
     </div>
+    <div class="note-toolbar">
+      <div class="color-picker-popup" id="color-picker-popup">
+        ${buildColorSwatchesHtml(_draftColor)}
+      </div>
+      <div class="toolbar-actions">
+        <button class="toolbar-btn ${_draftColor ? 'active' : ''}" onclick="toggleColorPicker()" title="Renk seç">🎨</button>
+        <button class="toolbar-btn" onclick="shareCurrentNote()" title="WhatsApp'ta paylaş">📤</button>
+      </div>
+    </div>
   `;
 
+  _applyModalColor(_draftColor);
   document.getElementById('note-title').focus();
 }
 
 // ── Color picker ──────────────────────────────────────────────────────────────
 
-function buildColorPickerHtml(currentColor) {
-  return `
-    <div class="color-picker-row">
-      <span class="field-label">Renk</span>
-      <div class="color-swatches">
-        ${NOTE_COLORS.map(c => `
-          <button class="color-swatch ${currentColor === c.id ? 'active' : ''}"
-            title="${c.label}"
-            onclick="setNoteColor(${c.id === null ? 'null' : `'${c.id}'`})"
-            style="${c.hex ? `background:${c.hex}` : 'background:var(--surface2)'}">
-            ${currentColor === c.id ? '✓' : ''}
-          </button>
-        `).join('')}
-      </div>
-    </div>
-  `;
+function buildColorSwatchesHtml(currentColor) {
+  return NOTE_COLORS.map(c => `
+    <button class="color-swatch ${currentColor === c.id ? 'active' : ''}"
+      title="${c.label}"
+      onclick="setNoteColor(${c.id === null ? 'null' : `'${c.id}'`})"
+      style="${c.hex ? `background:${c.hex}` : 'background:var(--surface2);border:2px dashed var(--border)'}">
+    </button>
+  `).join('');
+}
+
+function toggleColorPicker() {
+  document.getElementById('color-picker-popup')?.classList.toggle('open');
 }
 
 function setNoteColor(colorId) {
   _draftColor = colorId;
-  document.querySelectorAll('.color-swatch').forEach((s, i) => {
-    const active = NOTE_COLORS[i]?.id === colorId;
-    s.classList.toggle('active', active);
-    s.textContent = active ? '✓' : '';
+  document.querySelectorAll('#color-picker-popup .color-swatch').forEach((s, i) => {
+    s.classList.toggle('active', NOTE_COLORS[i]?.id === colorId);
   });
+  const tb = document.querySelector('.toolbar-btn[title="Renk seç"]');
+  if (tb) tb.classList.toggle('active', !!colorId);
+  _applyModalColor(colorId);
   if (editingNoteId) saveNote(_currentType, false);
 }
 
-// ── Tags editor ───────────────────────────────────────────────────────────────
-
-function buildTagsEditorHtml(tags) {
-  const pills = tags.map(t => `
-    <span class="tag-pill-edit">${escHtml(t)}
-      <button onclick="removeTag('${escHtml(t)}')" tabindex="-1">×</button>
-    </span>
-  `).join('');
-  return `
-    <div class="tags-editor-row">
-      <span class="field-label">Etiket</span>
-      <div class="tags-input-wrap">
-        <div class="tags-pills-edit" id="draft-tags-list">${pills}</div>
-        <input type="text" id="tag-input" class="tag-input" placeholder="Etiket ekle…"
-          onkeydown="if(event.key==='Enter'||event.key===','){event.preventDefault();addTag();}">
-      </div>
-    </div>
-  `;
-}
-
-function _refreshTagPills() {
-  const el = document.getElementById('draft-tags-list');
-  if (!el) return;
-  el.innerHTML = _draftTags.map(t => `
-    <span class="tag-pill-edit">${escHtml(t)}
-      <button onclick="removeTag('${escHtml(t)}')" tabindex="-1">×</button>
-    </span>
-  `).join('');
-}
-
-function addTag() {
-  const input = document.getElementById('tag-input');
-  const tag = input.value.trim().replace(/,/g, '');
-  if (!tag || _draftTags.includes(tag)) { input.value = ''; return; }
-  _draftTags.push(tag);
-  input.value = '';
-  _refreshTagPills();
-  if (editingNoteId) saveNote(_currentType, false);
-  input.focus();
-}
-
-function removeTag(tag) {
-  _draftTags = _draftTags.filter(t => t !== tag);
-  _refreshTagPills();
-  if (editingNoteId) saveNote(_currentType, false);
+function shareCurrentNote() {
+  const title = document.getElementById('note-title')?.value.trim() || '';
+  let text = title ? `*${title}*\n\n` : '';
+  if (_currentType === 'text') {
+    text += document.getElementById('note-content')?.value || '';
+  } else if (_currentType === 'checklist') {
+    syncChecklistFromDOM();
+    for (const item of _draftItems) {
+      text += item.type === 'header'
+        ? `\n*${item.text}*\n`
+        : `${item.checked ? '✅' : '⬜'} ${item.text}\n`;
+    }
+  } else if (_currentType === 'dimension') {
+    syncDimFromDOM();
+    for (const item of _draftItems) {
+      const dims = [item.en, item.boy, item.derinlik].filter(Boolean).join(' × ');
+      text += `${item.label || ''}${dims ? ': ' + dims : ''}\n`;
+    }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(text.trim())}`, '_blank');
 }
 
 // ── Checklist editor ──────────────────────────────────────────────────────────
@@ -204,13 +232,13 @@ function buildChecklistEditorHtml() {
       <div id="checklist-items">${buildChecklistItemsHtml()}</div>
       <div class="add-item-area">
         <div class="add-item-input-wrap">
-          <input type="text" id="new-item-input" placeholder="Öğe ekle veya ara…"
+          <span class="add-item-plus">+</span>
+          <input type="text" id="new-item-input" placeholder="Liste öğesi"
             oninput="onNewItemInput(this.value)"
             onkeydown="if(event.key==='Enter'){event.preventDefault();addCheckItem();}
                        if(event.key==='Escape')clearSuggestions();">
           <div id="item-suggestions" class="item-suggestions"></div>
         </div>
-        <button class="btn-add-item" onclick="addCheckItem()">+ Ekle</button>
       </div>
       <button class="btn-add-section" onclick="addSectionHeader()">+ Bölüm Ekle</button>
     </div>
@@ -219,24 +247,31 @@ function buildChecklistEditorHtml() {
 
 function buildChecklistItemsHtml() {
   return _draftItems.map((item, i) => {
+    const dragAttrs = `draggable="true"
+      ondragstart="_onDragStart(event,${i})"
+      ondragover="_onDragOver(event,${i})"
+      ondragleave="_onDragLeave(event)"
+      ondrop="_onDrop(event,${i})"
+      ondragend="_onDragEnd(event)"`;
+
     if (item.type === 'header') {
       return `
-        <div class="section-header-row" onclick="activateItemRow(this)">
+        <div class="section-header-row" ${dragAttrs} onclick="activateItemRow(this)">
+          <span class="drag-handle">⠿</span>
           <span class="section-icon">▶</span>
           <input type="text" class="section-header-input"
             value="${escHtml(item.text || '')}" placeholder="Bölüm adı…"
             onclick="event.stopPropagation()"
             oninput="_draftItems[${i}].text=this.value;_scheduleAutoSave()">
           <div class="item-controls">
-            <button class="btn-move" onclick="event.stopPropagation();moveItem(${i},-1)">↑</button>
-            <button class="btn-move" onclick="event.stopPropagation();moveItem(${i},1)">↓</button>
             <button class="btn-item-delete" onclick="event.stopPropagation();removeCheckItem(${i})">✕</button>
           </div>
         </div>
       `;
     }
     return `
-      <div class="checklist-item-row ${item.checked ? 'done' : ''}" onclick="activateItemRow(this)">
+      <div class="checklist-item-row ${item.checked ? 'done' : ''}" ${dragAttrs} onclick="activateItemRow(this)">
+        <span class="drag-handle">⠿</span>
         <input type="checkbox" ${item.checked ? 'checked' : ''}
           onclick="event.stopPropagation()"
           onchange="_draftItems[${i}].checked=this.checked;
@@ -247,8 +282,6 @@ function buildChecklistItemsHtml() {
           onclick="event.stopPropagation()"
           oninput="_draftItems[${i}].text=this.value;_scheduleAutoSave()">
         <div class="item-controls">
-          <button class="btn-move" onclick="event.stopPropagation();moveItem(${i},-1)">↑</button>
-          <button class="btn-move" onclick="event.stopPropagation();moveItem(${i},1)">↓</button>
           <button class="btn-item-delete" onclick="event.stopPropagation();removeCheckItem(${i})">✕</button>
         </div>
       </div>
@@ -308,33 +341,76 @@ function removeCheckItem(idx) {
   if (editingNoteId) saveNote(_currentType, false);
 }
 
-function moveItem(idx, dir) {
-  const target = idx + dir;
-  if (target < 0 || target >= _draftItems.length) return;
+function _onDragStart(e, idx) {
+  _dragIdx = idx;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => e.currentTarget.classList.add('dragging'), 0);
+}
+
+function _onDragOver(e, idx) {
+  e.preventDefault();
+  if (_dragIdx === null || _dragIdx === idx) return;
+  e.dataTransfer.dropEffect = 'move';
+  const row = e.currentTarget;
+  document.querySelectorAll('.drag-over,.drag-over-section').forEach(r => r.classList.remove('drag-over','drag-over-section'));
+  row.classList.add(row.classList.contains('section-header-row') ? 'drag-over-section' : 'drag-over');
+}
+
+function _onDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over', 'drag-over-section');
+}
+
+function _onDrop(e, targetIdx) {
+  e.preventDefault();
+  if (_dragIdx === null || _dragIdx === targetIdx) { _onDragEnd(e); return; }
   syncChecklistFromDOM();
-  [_draftItems[idx], _draftItems[target]] = [_draftItems[target], _draftItems[idx]];
+  const dragged = _draftItems.splice(_dragIdx, 1)[0];
+  const adjusted = targetIdx > _dragIdx ? targetIdx - 1 : targetIdx;
+  const isHeader = e.currentTarget.classList.contains('section-header-row');
+  _draftItems.splice(isHeader ? adjusted + 1 : adjusted, 0, dragged);
+  _dragIdx = null;
   document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
   if (editingNoteId) saveNote(_currentType, false);
+}
+
+function _onDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.drag-over,.drag-over-section').forEach(r => r.classList.remove('drag-over','drag-over-section'));
+  _dragIdx = null;
 }
 
 // ── Autocomplete ──────────────────────────────────────────────────────────────
 
 function onNewItemInput(val) {
   if (!val.trim()) { clearSuggestions(); return; }
-  const q      = val.toLowerCase().trim();
-  const inDraft = new Set(_draftItems.map(i => (i.text || '').toLowerCase()));
+  const q       = val.toLowerCase().trim();
+  const seen    = new Set();
   const matches = [];
+
+  const pushItem = text => {
+    if (!text) return;
+    const lo = text.toLowerCase();
+    if (lo.includes(q) && !seen.has(lo)) {
+      seen.add(lo);
+      matches.push(text);
+    }
+  };
+
+  // current draft items first
+  for (const item of _draftItems) {
+    if (item.type !== 'header') pushItem(item.text);
+    if (matches.length >= 8) break;
+  }
+
+  // then all saved notes
   for (const note of S.notes) {
     for (const item of note.items || []) {
-      if (!item.text || item.type === 'header') continue;
-      const t = item.text.toLowerCase();
-      if (t.includes(q) && !inDraft.has(t) && !matches.includes(item.text)) {
-        matches.push(item.text);
-        if (matches.length >= 8) break;
-      }
+      if (item.type !== 'header') pushItem(item.text);
+      if (matches.length >= 8) break;
     }
     if (matches.length >= 8) break;
   }
+
   showSuggestions(matches);
 }
 
@@ -367,29 +443,49 @@ function buildDimEditorHtml() {
   return `
     <div id="dimension-editor">
       <div id="dim-items">${buildDimItemsHtml()}</div>
-      <button class="btn-add-item" onclick="addDimItem()">+ Satır Ekle</button>
+      <div class="add-item-area">
+        <div class="add-item-input-wrap">
+          <span class="add-item-plus">+</span>
+          <input type="text" id="new-dim-input" placeholder="Ölçü ekle…"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();addDimItemFromInput();}">
+        </div>
+      </div>
     </div>
   `;
+}
+
+function addDimItemFromInput() {
+  const input = document.getElementById('new-dim-input');
+  const label = input.value.trim();
+  syncDimFromDOM();
+  _draftItems.push({ label, en: '', boy: '', derinlik: '' });
+  document.getElementById('dim-items').innerHTML = buildDimItemsHtml();
+  input.value = '';
+  const enInputs = document.querySelectorAll('.dim-en');
+  enInputs[enInputs.length - 1]?.focus();
+  if (editingNoteId) saveNote(_currentType, false);
 }
 
 function buildDimItemsHtml() {
   return _draftItems.map((item, i) => `
     <div class="dim-item-row" onclick="activateItemRow(this)">
       <input type="text" class="dim-label"
-        value="${escHtml(item.label || '')}" placeholder="Etiket (örn. Koltuk eni)"
+        value="${escHtml(item.label || '')}" placeholder="İsim"
         onclick="event.stopPropagation()"
         oninput="_draftItems[${i}].label=this.value;_scheduleAutoSave()">
-      <input type="text" class="dim-value"
-        value="${escHtml(item.value || '')}" placeholder="180"
+      <input type="text" class="dim-en"
+        value="${escHtml(item.en || '')}" placeholder="En"
         onclick="event.stopPropagation()"
-        oninput="_draftItems[${i}].value=this.value;_scheduleAutoSave()">
-      <input type="text" class="dim-unit"
-        value="${escHtml(item.unit || '')}" placeholder="cm"
+        oninput="_draftItems[${i}].en=this.value;_scheduleAutoSave()">
+      <input type="text" class="dim-boy"
+        value="${escHtml(item.boy || '')}" placeholder="Boy"
         onclick="event.stopPropagation()"
-        oninput="_draftItems[${i}].unit=this.value;_scheduleAutoSave()">
+        oninput="_draftItems[${i}].boy=this.value;_scheduleAutoSave()">
+      <input type="text" class="dim-derinlik"
+        value="${escHtml(item.derinlik || '')}" placeholder="Derinlik"
+        onclick="event.stopPropagation()"
+        oninput="_draftItems[${i}].derinlik=this.value;_scheduleAutoSave()">
       <div class="item-controls">
-        <button class="btn-move" onclick="event.stopPropagation();moveDimItem(${i},-1)">↑</button>
-        <button class="btn-move" onclick="event.stopPropagation();moveDimItem(${i},1)">↓</button>
         <button class="btn-item-delete" onclick="event.stopPropagation();removeDimItem(${i})">✕</button>
       </div>
     </div>
@@ -399,16 +495,17 @@ function buildDimItemsHtml() {
 function syncDimFromDOM() {
   document.querySelectorAll('.dim-item-row').forEach((row, i) => {
     if (_draftItems[i]) {
-      _draftItems[i].label = row.querySelector('.dim-label')?.value  || '';
-      _draftItems[i].value = row.querySelector('.dim-value')?.value  || '';
-      _draftItems[i].unit  = row.querySelector('.dim-unit')?.value   || '';
+      _draftItems[i].label    = row.querySelector('.dim-label')?.value    || '';
+      _draftItems[i].en       = row.querySelector('.dim-en')?.value       || '';
+      _draftItems[i].boy      = row.querySelector('.dim-boy')?.value      || '';
+      _draftItems[i].derinlik = row.querySelector('.dim-derinlik')?.value || '';
     }
   });
 }
 
 function addDimItem() {
   syncDimFromDOM();
-  _draftItems.push({ label: '', value: '', unit: '' });
+  _draftItems.push({ label: '', en: '', boy: '', derinlik: '' });
   document.getElementById('dim-items').innerHTML = buildDimItemsHtml();
   const labels = document.querySelectorAll('.dim-label');
   labels[labels.length - 1]?.focus();
@@ -459,7 +556,6 @@ function saveNote(type, closeAfter = true) {
     type,
     updated: now,
     color:   _draftColor,
-    tags:    [..._draftTags],
   };
 
   if (type === 'text') {

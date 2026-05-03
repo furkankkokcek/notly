@@ -86,28 +86,31 @@
   font-weight: 700;
 }
 
-/* Color picker */
-.color-picker-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* ── Note toolbar (bottom palette bar) ───────────────────────────────────── */
+.note-toolbar {
+  position: sticky;
+  bottom: 0;
+  background: var(--ms-bg, var(--surface));
+  border-top: 1px solid var(--border);
+  margin: 10px -20px -20px;
+  padding: 4px 20px 0;
+  z-index: 10;
 }
 
-.color-picker-row span {
-  font-size: 13px;
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-.color-swatches {
-  display: flex;
-  gap: 7px;
+.color-picker-popup {
+  display: none;
   flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 2px 8px;
+}
+
+.color-picker-popup.open {
+  display: flex;
 }
 
 .color-swatch {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 2.5px solid transparent;
   cursor: pointer;
@@ -120,67 +123,49 @@
 }
 
 .color-swatch.active {
-  border-color: var(--text);
-  transform: scale(1.15);
+  border-color: white;
+  box-shadow: 0 0 0 2px var(--text);
+  transform: scale(1.12);
 }
 
-.color-swatch-default {
-  background: var(--surface2);
-  border: 2px dashed var(--border);
+.toolbar-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  color: var(--text-muted);
+  gap: 2px;
 }
 
-/* Tags editor */
-.tags-editor-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  padding: 8px;
-  background: var(--surface2);
+.toolbar-btn {
+  font-size: 20px;
+  padding: 5px 8px;
   border-radius: var(--radius-sm);
-  min-height: 42px;
-}
-
-.tag-pill-edit {
-  font-size: 12px;
-  padding: 3px 8px;
-  border-radius: 20px;
-  background: var(--accent);
-  color: white;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.tag-pill-edit .tag-remove {
-  cursor: pointer;
-  opacity: 0.7;
-  font-size: 11px;
-  line-height: 1;
-}
-
-.tag-pill-edit .tag-remove:hover {
-  opacity: 1;
-}
-
-.tag-input {
-  border: none;
-  background: transparent;
-  font-size: 13px;
-  color: var(--text);
-  outline: none;
-  min-width: 80px;
-  flex: 1;
-}
-
-.tag-input::placeholder {
   color: var(--text-muted);
+  transition: background 0.15s, color 0.15s;
 }
+
+.toolbar-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+}
+
+.toolbar-btn.active {
+  color: var(--accent);
+}
+
+/* Modal sheet background colors — --ms-bg feeds the sticky toolbar */
+#note-modal .ms.modal-color-purple { background: #3b1d6e; --ms-bg: #3b1d6e; }
+#note-modal .ms.modal-color-blue   { background: #1a2f5a; --ms-bg: #1a2f5a; }
+#note-modal .ms.modal-color-green  { background: #0d3320; --ms-bg: #0d3320; }
+#note-modal .ms.modal-color-amber  { background: #3d2600; --ms-bg: #3d2600; }
+#note-modal .ms.modal-color-red    { background: #3b0e0e; --ms-bg: #3b0e0e; }
+#note-modal .ms.modal-color-rose   { background: #3b0e2a; --ms-bg: #3b0e2a; }
+
+[data-theme="light"] #note-modal .ms.modal-color-purple { background: #ede9fe; --ms-bg: #ede9fe; }
+[data-theme="light"] #note-modal .ms.modal-color-blue   { background: #dbeafe; --ms-bg: #dbeafe; }
+[data-theme="light"] #note-modal .ms.modal-color-green  { background: #dcfce7; --ms-bg: #dcfce7; }
+[data-theme="light"] #note-modal .ms.modal-color-amber  { background: #fef3c7; --ms-bg: #fef3c7; }
+[data-theme="light"] #note-modal .ms.modal-color-red    { background: #fee2e2; --ms-bg: #fee2e2; }
+[data-theme="light"] #note-modal .ms.modal-color-rose   { background: #fce7f3; --ms-bg: #fce7f3; }
+
 
 /* Save indicator */
 .save-indicator {
@@ -198,32 +183,66 @@
   opacity: 1;
 }
 
+/* List subtype toggle */
+.list-subtype-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.list-subtype-btn {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.list-subtype-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.list-subtype-btn.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
 /* Checklist editor */
 #checklist-items {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   min-height: 8px;
 }
 
+/* ── List items ── */
 .checklist-item-row {
   display: flex;
   align-items: center;
   gap: 8px;
   border-radius: var(--radius-sm);
-  padding: 3px 4px;
+  padding: 2px 4px;
   transition: background 0.12s;
   cursor: pointer;
   position: relative;
 }
 
 .checklist-item-row:hover {
-  background: var(--surface2);
+  background: rgba(255,255,255,0.04);
+}
+
+[data-theme="light"] .checklist-item-row:hover {
+  background: rgba(0,0,0,0.04);
 }
 
 .checklist-item-row input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
   flex-shrink: 0;
   accent-color: var(--accent);
   cursor: pointer;
@@ -231,40 +250,91 @@
 
 .checklist-item-row .item-text-input {
   flex: 1;
+  font-size: 15px;
+  font-weight: 400;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 6px 0;
   cursor: text;
+  color: var(--text);
+}
+
+.checklist-item-row .item-text-input:focus {
+  border-color: transparent;
 }
 
 .checklist-item-row.done .item-text-input {
   text-decoration: line-through;
-  opacity: 0.55;
+  opacity: 0.45;
 }
 
-/* Section header row */
+/* ── Section header row ── */
 .section-header-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 2px 4px;
-  margin-top: 4px;
+  gap: 6px;
+  padding: 3px 4px 2px;
+  margin: 12px 0 2px;
+  border-bottom: 1px solid var(--border);
 }
 
 .section-icon {
-  font-size: 14px;
+  font-size: 9px;
   flex-shrink: 0;
-  opacity: 0.7;
+  opacity: 0.35;
 }
 
 .section-header-input {
   flex: 1;
+  font-size: 11px;
   font-weight: 700;
-  font-size: 13px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.1em;
   color: var(--text-muted);
-  border-bottom: 1px dashed var(--border);
-  border-radius: 0;
   background: transparent;
-  padding: 4px 0;
+  border: none;
+  border-radius: 0;
+  padding: 2px 0;
+}
+
+.section-header-input::placeholder {
+  opacity: 0.35;
+  font-weight: 600;
+}
+
+/* Drag handle */
+.drag-handle {
+  cursor: grab;
+  color: var(--text-muted);
+  opacity: 0;
+  font-size: 15px;
+  flex-shrink: 0;
+  padding: 0 2px;
+  transition: opacity 0.15s;
+  user-select: none;
+}
+
+.checklist-item-row:hover .drag-handle,
+.section-header-row:hover .drag-handle {
+  opacity: 0.5;
+}
+
+.checklist-item-row.dragging,
+.section-header-row.dragging {
+  opacity: 0.35;
+  cursor: grabbing;
+}
+
+.checklist-item-row.drag-over {
+  border-top: 2px solid var(--accent);
+  margin-top: -2px;
+}
+
+.section-header-row.drag-over-section {
+  background: rgba(124, 58, 237, 0.18);
+  border-radius: var(--radius-sm);
+  outline: 1.5px dashed var(--accent);
 }
 
 /* Item controls (revealed on row click) */
@@ -279,19 +349,6 @@
 .checklist-item-row.active .item-controls,
 .section-header-row.active .item-controls {
   display: flex;
-}
-
-.btn-move {
-  font-size: 13px;
-  padding: 2px 4px;
-  color: var(--text-muted);
-  border-radius: var(--radius-sm);
-  transition: color 0.12s, background 0.12s;
-}
-
-.btn-move:hover {
-  color: var(--text);
-  background: var(--surface);
 }
 
 .btn-item-delete {
@@ -311,60 +368,68 @@
 /* Add item area */
 .add-item-area {
   position: relative;
-  margin-top: 4px;
+  margin-top: 10px;
 }
 
 .add-item-input-wrap {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 8px;          /* same as .checklist-item-row gap */
+  padding: 6px 4px;  /* same as .checklist-item-row padding */
+  border-top: 1px solid var(--border);
+}
+
+/* spacer that matches the drag-handle width so + lands on the checkbox column */
+.add-item-input-wrap::before {
+  content: '';
+  width: 19px;   /* drag-handle: font-size 15px + padding 0 2px */
+  flex-shrink: 0;
+}
+
+.add-item-plus {
+  width: 18px;   /* same as checkbox width */
+  font-size: 18px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  line-height: 1;
+  text-align: center;
+  user-select: none;
 }
 
 .add-item-input-wrap input {
   flex: 1;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 15px;
+  color: var(--text);
+  outline: none;
+}
+
+.add-item-input-wrap input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.btn-add-item {
+  display: none;
 }
 
 /* Section add button */
 .btn-add-section {
-  padding: 7px 12px;
-  border: 1.5px dashed var(--border);
-  border-radius: var(--radius-sm);
+  display: block;
+  margin-top: 10px;
+  padding: 4px 2px;
   color: var(--text-muted);
   font-size: 12px;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: all 0.15s;
+  opacity: 0.5;
+  transition: opacity 0.15s, color 0.15s;
+  text-align: left;
 }
 
 .btn-add-section:hover {
-  border-color: var(--accent);
+  opacity: 1;
   color: var(--accent);
-}
-
-.add-item-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.add-item-row input {
-  flex: 1;
-}
-
-.btn-add-item {
-  padding: 8px 14px;
-  border: 1.5px dashed var(--accent);
-  border-radius: var(--radius-sm);
-  color: var(--accent);
-  font-size: 14px;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: all 0.15s;
-}
-
-.btn-add-item:hover {
-  background: var(--accent);
-  color: white;
-  border-style: solid;
 }
 
 /* Autocomplete suggestions */
@@ -416,13 +481,12 @@
 
 .dim-label {
   flex: 2;
+  min-width: 0;
 }
 
-.dim-value {
-  flex: 1.5;
-}
-
-.dim-unit {
+.dim-en,
+.dim-boy,
+.dim-derinlik {
   flex: 1;
   min-width: 0;
 }
