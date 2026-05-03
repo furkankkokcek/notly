@@ -231,3 +231,53 @@
   font-size: 12px;
   padding: 12px 0 4px;
 }
+
+/* Paste & Import */
+.type-option-paste {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+.type-option-paste:hover {
+  color: var(--text);
+}
+
+.type-badge {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.paste-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.paste-detect-row {
+  min-height: 24px;
+}
+
+.paste-detected {
+  display: inline-block;
+  font-size: 13px;
+  padding: 6px 12px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent);
+  color: var(--text-muted);
+}
+
+.paste-detected strong {
+  color: var(--text);
+}
+
+.paste-detected em {
+  color: var(--accent);
+  font-style: normal;
+}

@@ -44,6 +44,11 @@ function showTypeSelector() {
       <button class="type-option" onclick="_draftItems=[];renderNoteEditor('dimension')">
         <span class="type-icon">📐</span><span>Dimensions</span>
       </button>
+      <button class="type-option type-option-paste" onclick="showPasteImporter()">
+        <span class="type-icon">📋</span>
+        <span>Paste &amp; Import</span>
+        <span class="type-badge">Auto-detect</span>
+      </button>
     </div>
   `;
 }
@@ -212,4 +217,103 @@ function saveNote(type) {
   saveS();
   closeNoteModal();
   renderHome();
+}
+
+// ── Paste & Import ────────────────────────────────────────────────────────────
+
+function showPasteImporter() {
+  document.getElementById('note-modal-content').innerHTML = `
+    <div class="modal-header">
+      <button class="btn-back" onclick="showTypeSelector()">←</button>
+      <h2>Paste &amp; Import</h2>
+      <button class="btn-close" onclick="closeNoteModal()">✕</button>
+    </div>
+    <div class="note-editor">
+      <p class="paste-hint">Paste any list below — shopping items, dimensions, or notes. Each line becomes an item.</p>
+      <textarea id="paste-input" rows="13"
+        placeholder="Alışveris Listesi&#10;Süt&#10;Ekmek&#10;Yumurta&#10;&#10;or&#10;&#10;Koltuk  300 190 100&#10;Tv ünitesi 165 44&#10;Kitaplık 60 40 182"></textarea>
+      <div class="paste-detect-row" id="paste-detect-row"></div>
+      <button class="btn-save" onclick="parsePasteAndImport()">Import →</button>
+    </div>
+  `;
+  const ta = document.getElementById('paste-input');
+  ta.focus();
+  ta.addEventListener('input', debounceDetect);
+}
+
+let _detectTimer = null;
+function debounceDetect() {
+  clearTimeout(_detectTimer);
+  _detectTimer = setTimeout(showPasteDetection, 300);
+}
+
+function showPasteDetection() {
+  const text = document.getElementById('paste-input').value.trim();
+  const row = document.getElementById('paste-detect-row');
+  if (!row) return;
+  if (!text) { row.innerHTML = ''; return; }
+  const parsed = parsePasteContent(text);
+  if (!parsed) { row.innerHTML = ''; return; }
+  const icon  = parsed.type === 'dimension' ? '📐' : '✅';
+  const label = parsed.type === 'dimension' ? 'Dimensions' : 'Shopping / Task List';
+  row.innerHTML = `
+    <span class="paste-detected">
+      ${icon} Detected: <strong>${label}</strong>
+      — ${parsed.items.length} item${parsed.items.length !== 1 ? 's' : ''}
+      ${parsed.title ? `· Title: <em>${escHtml(parsed.title)}</em>` : ''}
+    </span>
+  `;
+}
+
+function parsePasteContent(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  if (!lines.length) return null;
+
+  // Dimension line: text ending in a letter/char, then 1+ space, then 2+ space-separated integers
+  const isDimLine = l => /^(.*?[^\d\s])\s+(\d+(?:\s+\d+)+)$/.test(l);
+  // Title: first line has no digits at all and is reasonably short
+  const isTitle = l => /^\D+$/.test(l) && l.length <= 60;
+
+  const body = lines.slice(1);
+  const dimScore = body.length ? body.filter(isDimLine).length / body.length : 0;
+  const type = dimScore > 0.5 ? 'dimension' : 'checklist';
+
+  let title = '';
+  let itemLines = lines;
+  if (lines.length > 1 && isTitle(lines[0]) && !isDimLine(lines[0])) {
+    title = lines[0];
+    itemLines = lines.slice(1);
+  }
+
+  if (type === 'dimension') {
+    const items = itemLines.map(line => {
+      const m = line.match(/^(.*?[^\d\s])\s+(\d+(?:\s+\d+)*)$/);
+      if (m) {
+        const nums = m[2].split(/\s+/);
+        return {
+          label: m[1].trim(),
+          value: nums[0],
+          unit: nums.length > 1 ? nums.slice(1).join(' × ') : '',
+        };
+      }
+      return { label: line, value: '', unit: '' };
+    });
+    return { type, title, items };
+  }
+
+  return {
+    type: 'checklist',
+    title,
+    items: itemLines.map(t => ({ text: t, checked: false })),
+  };
+}
+
+function parsePasteAndImport() {
+  const text = document.getElementById('paste-input').value.trim();
+  if (!text) { document.getElementById('paste-input').focus(); return; }
+  const parsed = parsePasteContent(text);
+  if (!parsed) return;
+  _draftItems = parsed.items;
+  renderNoteEditor(parsed.type, null);
+  if (parsed.title) document.getElementById('note-title').value = parsed.title;
 }
