@@ -2,9 +2,11 @@ const DEFAULT_STATE = {
   notes: [],
   theme: 'dark',
   filter: 'all',
+  tagFilter: null,
 };
 
 let S = {};
+let _changesSinceExport = 0;
 
 function loadS() {
   try {
@@ -13,11 +15,22 @@ function loadS() {
   } catch {
     S = { ...DEFAULT_STATE };
   }
+  _changesSinceExport = parseInt(localStorage.getItem('notly_chg') || '0');
   applyTheme();
 }
 
 function saveS() {
   localStorage.setItem('notly_v1', JSON.stringify(S));
+  _changesSinceExport++;
+  localStorage.setItem('notly_chg', String(_changesSinceExport));
+  if (_changesSinceExport >= 20 && _changesSinceExport % 20 === 0) {
+    document.dispatchEvent(new CustomEvent('notly:exportprompt', { detail: { count: _changesSinceExport } }));
+  }
+}
+
+function resetChangeCounter() {
+  _changesSinceExport = 0;
+  localStorage.setItem('notly_chg', '0');
 }
 
 function applyTheme() {
@@ -38,6 +51,5 @@ function escHtml(str) {
 
 function formatDate(ts) {
   if (!ts) return '';
-  const d = new Date(ts);
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  return new Date(ts).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' });
 }
