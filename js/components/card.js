@@ -4,10 +4,6 @@ function renderCard(note) {
   const icon       = TYPE_ICON[note.type] || '📝';
   const colorClass = note.color ? `card-color-${note.color}` : '';
   const preview    = note.hidden ? '<span class="hidden-text">🔒 Gizli içerik</span>' : buildPreview(note);
-  const tagsHtml   = (note.tags || []).map(t =>
-    `<span class="tag-pill" onclick="setTagFilter(event,'${escHtml(t)}')">${escHtml(t)}</span>`
-  ).join('');
-
   return `
     <div class="card ${note.pinned ? 'pinned' : ''} ${colorClass}" onclick="openNote('${note.id}')">
       <div class="card-header">
@@ -16,7 +12,6 @@ function renderCard(note) {
         <button class="btn-pin ${note.pinned ? 'active' : ''}"
           onclick="togglePin(event,'${note.id}')" title="Sabitle">📌</button>
       </div>
-      ${tagsHtml ? `<div class="card-tags">${tagsHtml}</div>` : ''}
       <div class="card-preview">${preview}</div>
       <div class="card-footer">
         <span class="card-date">${formatDate(note.updated)}</span>
@@ -53,9 +48,10 @@ function buildPreview(note) {
   if (note.type === 'dimension') {
     const items = note.items || [];
     if (!items.length) return '<span style="opacity:.4">Ölçü yok</span>';
-    return items.slice(0, 4).map(i =>
-      `<span class="dim-row">${escHtml(i.label)}: ${escHtml(i.value)}${i.unit ? ' × ' + escHtml(i.unit) : ''}</span>`
-    ).join('');
+    return items.slice(0, 4).map(i => {
+      const dims = [i.en, i.boy, i.derinlik].filter(Boolean).join(' × ');
+      return `<span class="dim-row">${escHtml(i.label || '')}${dims ? ': ' + escHtml(dims) : ''}</span>`;
+    }).join('');
   }
   return '';
 }
@@ -75,7 +71,8 @@ function shareToWhatsApp(e, id) {
     }
   } else if (note.type === 'dimension') {
     for (const item of note.items || []) {
-      text += `${item.label}: ${item.value}${item.unit ? ' × ' + item.unit : ''}\n`;
+      const dims = [item.en, item.boy, item.derinlik].filter(Boolean).join(' × ');
+      text += `${item.label || ''}${dims ? ': ' + dims : ''}\n`;
     }
   }
   window.open(`https://wa.me/?text=${encodeURIComponent(text.trim())}`, '_blank');

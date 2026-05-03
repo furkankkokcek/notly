@@ -69,27 +69,6 @@
   opacity: 1;
 }
 
-/* Tags row */
-.card-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.tag-pill {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 20px;
-  background: var(--accent);
-  color: white;
-  opacity: 0.85;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.tag-pill:hover {
-  opacity: 1;
-}
 
 .card-preview {
   font-size: 13px;
