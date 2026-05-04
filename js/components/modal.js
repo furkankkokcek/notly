@@ -1,9 +1,11 @@
-let editingNoteId    = null;
-let _draftItems      = [];
-let _draftColor      = null;
-let _currentType     = null;
-let _dragIdx         = null;
-let _checklistMode   = 'task'; // 'task' | 'shopping'
+let editingNoteId       = null;
+let _draftItems         = [];
+let _draftColor         = null;
+let _currentType        = null;
+let _dragIdx            = null;
+let _dragSectionEnd     = null;
+let _visibleItemIndices = [];
+let _checklistMode      = 'task'; // 'task' | 'shopping'
 
 const DEFAULT_SHOPPING_CATEGORIES = [
   'Meyve ve Sebzeler',
@@ -230,6 +232,7 @@ function buildChecklistEditorHtml() {
   return `
     <div id="checklist-editor">
       <div id="checklist-items">${buildChecklistItemsHtml()}</div>
+      <div id="inline-suggestions" class="item-suggestions" style="display:none;position:fixed;z-index:400"></div>
       <div class="add-item-area">
         <div class="add-item-input-wrap">
           <span class="add-item-plus">+</span>
@@ -246,7 +249,11 @@ function buildChecklistEditorHtml() {
 }
 
 function buildChecklistItemsHtml() {
-  return _draftItems.map((item, i) => {
+  _visibleItemIndices = [];
+  let skipSection = false;
+  const parts = [];
+
+  _draftItems.forEach((item, i) => {
     const dragAttrs = `draggable="true"
       ondragstart="_onDragStart(event,${i})"
       ondragover="_onDragOver(event,${i})"
@@ -255,10 +262,12 @@ function buildChecklistItemsHtml() {
       ondragend="_onDragEnd(event)"`;
 
     if (item.type === 'header') {
-      return `
-        <div class="section-header-row" ${dragAttrs} onclick="activateItemRow(this)">
+      skipSection = item.collapsed || false;
+      _visibleItemIndices.push(i);
+      parts.push(`
+        <div class="section-header-row ${item.collapsed ? 'collapsed' : ''}" ${dragAttrs} onclick="activateItemRow(this)">
           <span class="drag-handle">⠿</span>
-          <span class="section-icon">▶</span>
+          <span class="section-icon" onclick="event.stopPropagation();toggleSectionCollapse(${i})">${item.collapsed ? '▶' : '▼'}</span>
           <input type="text" class="section-header-input"
             value="${escHtml(item.text || '')}" placeholder="Bölüm adı…"
             onclick="event.stopPropagation()"
@@ -269,27 +278,33 @@ function buildChecklistItemsHtml() {
             <button class="btn-item-delete" onclick="event.stopPropagation();removeCheckItem(${i})">✕</button>
           </div>
         </div>
-      `;
-    }
-    return `
-      <div class="checklist-item-row ${item.checked ? 'done' : ''}" ${dragAttrs} onclick="activateItemRow(this)">
-        <span class="drag-handle">⠿</span>
-        <input type="checkbox" ${item.checked ? 'checked' : ''}
-          onclick="event.stopPropagation()"
-          onchange="_draftItems[${i}].checked=this.checked;
-                    if(this.checked){_draftItems[${i}].checkedAt=Date.now();}else{delete _draftItems[${i}].checkedAt;}
-                    _sortAndRenderChecklist();
-                    _scheduleAutoSave();">
-        <input type="text" class="item-text-input"
-          value="${escHtml(item.text || '')}" placeholder="Öğe…"
-          onclick="event.stopPropagation()"
-          oninput="_draftItems[${i}].text=this.value;_scheduleAutoSave()">
-        <div class="item-controls">
-          <button class="btn-item-delete" onclick="event.stopPropagation();removeCheckItem(${i})">✕</button>
+      `);
+    } else if (!skipSection) {
+      _visibleItemIndices.push(i);
+      parts.push(`
+        <div class="checklist-item-row ${item.checked ? 'done' : ''}" ${dragAttrs} onclick="activateItemRow(this)">
+          <span class="drag-handle">⠿</span>
+          <input type="checkbox" ${item.checked ? 'checked' : ''}
+            onclick="event.stopPropagation()"
+            onchange="_draftItems[${i}].checked=this.checked;
+                      if(this.checked){_draftItems[${i}].checkedAt=Date.now();}else{delete _draftItems[${i}].checkedAt;}
+                      _sortAndRenderChecklist();
+                      _scheduleAutoSave();">
+          <input type="text" class="item-text-input"
+            value="${escHtml(item.text || '')}" placeholder="Öğe…"
+            onclick="event.stopPropagation()"
+            oninput="_draftItems[${i}].text=this.value;_scheduleAutoSave();onInlineItemInput(event,${i})"
+            onblur="setTimeout(clearInlineSuggestions,150)"
+            onkeydown="onItemKeydown(event,${i})">
+          <div class="item-controls">
+            <button class="btn-item-delete" onclick="event.stopPropagation();removeCheckItem(${i})">✕</button>
+          </div>
         </div>
-      </div>
-    `;
-  }).join('');
+      `);
+    }
+  });
+
+  return parts.join('');
 }
 
 function _sortAndRenderChecklist() {
@@ -325,8 +340,9 @@ function _deactivateAllRows() {
 }
 
 function syncChecklistFromDOM() {
-  document.querySelectorAll('#checklist-items > div').forEach((row, i) => {
-    if (!_draftItems[i]) return;
+  document.querySelectorAll('#checklist-items > div').forEach((row, domIdx) => {
+    const i = _visibleItemIndices[domIdx];
+    if (i === undefined || !_draftItems[i]) return;
     if (_draftItems[i].type === 'header') {
       _draftItems[i].text = row.querySelector('.section-header-input')?.value || '';
     } else {
@@ -370,9 +386,11 @@ function addItemToSection(headerIdx) {
   }
   _draftItems.splice(insertBefore, 0, { text: '', checked: false });
   document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
-  // Focus the new item's text input
-  const inputIndex = _draftItems.slice(0, insertBefore).filter(x => x.type !== 'header').length;
-  document.querySelectorAll('.item-text-input')[inputIndex]?.focus();
+  const domIdx = _visibleItemIndices.indexOf(insertBefore);
+  if (domIdx !== -1) {
+    const rows = document.querySelectorAll('#checklist-items > div');
+    rows[domIdx]?.querySelector('.item-text-input')?.focus();
+  }
   if (editingNoteId) saveNote(_currentType, false);
 }
 
@@ -385,6 +403,14 @@ function removeCheckItem(idx) {
 
 function _onDragStart(e, idx) {
   _dragIdx = idx;
+  if (_draftItems[idx]?.type === 'header') {
+    _dragSectionEnd = idx + 1;
+    while (_dragSectionEnd < _draftItems.length && _draftItems[_dragSectionEnd].type !== 'header') {
+      _dragSectionEnd++;
+    }
+  } else {
+    _dragSectionEnd = null;
+  }
   e.dataTransfer.effectAllowed = 'move';
   setTimeout(() => e.currentTarget.classList.add('dragging'), 0);
 }
@@ -406,11 +432,27 @@ function _onDrop(e, targetIdx) {
   e.preventDefault();
   if (_dragIdx === null || _dragIdx === targetIdx) { _onDragEnd(e); return; }
   syncChecklistFromDOM();
-  const dragged = _draftItems.splice(_dragIdx, 1)[0];
-  const adjusted = targetIdx > _dragIdx ? targetIdx - 1 : targetIdx;
-  const isHeader = e.currentTarget.classList.contains('section-header-row');
-  _draftItems.splice(isHeader ? adjusted + 1 : adjusted, 0, dragged);
+
+  if (_dragSectionEnd !== null) {
+    const sectionLen = _dragSectionEnd - _dragIdx;
+    const section = _draftItems.splice(_dragIdx, sectionLen);
+    let insertAt = targetIdx > _dragIdx ? targetIdx - sectionLen : targetIdx;
+    insertAt = Math.max(0, Math.min(insertAt, _draftItems.length));
+    if (e.currentTarget.classList.contains('section-header-row')) {
+      let afterSection = insertAt + 1;
+      while (afterSection < _draftItems.length && _draftItems[afterSection].type !== 'header') afterSection++;
+      insertAt = afterSection;
+    }
+    _draftItems.splice(insertAt, 0, ...section);
+  } else {
+    const dragged = _draftItems.splice(_dragIdx, 1)[0];
+    const adjusted = targetIdx > _dragIdx ? targetIdx - 1 : targetIdx;
+    const isHeader = e.currentTarget.classList.contains('section-header-row');
+    _draftItems.splice(isHeader ? adjusted + 1 : adjusted, 0, dragged);
+  }
+
   _dragIdx = null;
+  _dragSectionEnd = null;
   document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
   if (editingNoteId) saveNote(_currentType, false);
 }
@@ -419,6 +461,76 @@ function _onDragEnd(e) {
   e.currentTarget.classList.remove('dragging');
   document.querySelectorAll('.drag-over,.drag-over-section').forEach(r => r.classList.remove('drag-over','drag-over-section'));
   _dragIdx = null;
+  _dragSectionEnd = null;
+}
+
+// ── Collapse / expand sections ────────────────────────────────────────────────
+
+function toggleSectionCollapse(idx) {
+  syncChecklistFromDOM();
+  _draftItems[idx].collapsed = !_draftItems[idx].collapsed;
+  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+  if (editingNoteId) saveNote(_currentType, false);
+}
+
+// ── Inline item keydown (Enter = new item in same section) ────────────────────
+
+function onItemKeydown(e, idx) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  syncChecklistFromDOM();
+  _draftItems.splice(idx + 1, 0, { text: '', checked: false });
+  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+  const domIdx = _visibleItemIndices.indexOf(idx + 1);
+  if (domIdx !== -1) {
+    const rows = document.querySelectorAll('#checklist-items > div');
+    rows[domIdx]?.querySelector('.item-text-input')?.focus();
+  }
+  if (editingNoteId) saveNote(_currentType, false);
+}
+
+// ── Inline item search ────────────────────────────────────────────────────────
+
+function onInlineItemInput(e, idx) {
+  const val = (e.target?.value || '').trim();
+  const popup = document.getElementById('inline-suggestions');
+  if (!popup) return;
+  if (!val) { popup.style.display = 'none'; return; }
+  const q = val.toLowerCase();
+  const seen = new Set();
+  const matches = [];
+  const push = text => {
+    if (!text) return;
+    const lo = text.toLowerCase();
+    if (lo.includes(q) && !seen.has(lo)) { seen.add(lo); matches.push(text); }
+  };
+  for (const item of _draftItems) { if (item.type !== 'header') push(item.text); }
+  for (const note of S.notes) {
+    for (const item of note.items || []) { if (item.type !== 'header') push(item.text); if (matches.length >= 8) break; }
+    if (matches.length >= 8) break;
+  }
+  if (!matches.length) { popup.style.display = 'none'; return; }
+  const rect = e.target.getBoundingClientRect();
+  popup.style.left    = Math.round(rect.left) + 'px';
+  popup.style.top     = Math.round(rect.bottom + 2) + 'px';
+  popup.style.minWidth = Math.round(rect.width) + 'px';
+  popup.style.display = 'block';
+  popup.innerHTML = matches.map(s =>
+    `<button class="suggestion-item" onmousedown="event.preventDefault();selectInlineSuggestion(${JSON.stringify(s)},${idx})">${escHtml(s)}</button>`
+  ).join('');
+}
+
+function selectInlineSuggestion(text, idx) {
+  syncChecklistFromDOM();
+  if (_draftItems[idx]) _draftItems[idx].text = text;
+  clearInlineSuggestions();
+  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+  if (editingNoteId) saveNote(_currentType, false);
+}
+
+function clearInlineSuggestions() {
+  const el = document.getElementById('inline-suggestions');
+  if (el) el.style.display = 'none';
 }
 
 // ── Autocomplete ──────────────────────────────────────────────────────────────

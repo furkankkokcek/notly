@@ -125,9 +125,9 @@ function showExportBanner(count) {
   banner.id        = 'export-banner';
   banner.className = 'export-banner';
   banner.innerHTML = `
-    <span>💾 ${count} değişiklik yapıldı — verilerinizi yedekleyin!</span>
-    <button onclick="exportNotes()">Yedekle</button>
     <button class="btn-dismiss" onclick="dismissExportBanner()">✕</button>
+    <span class="export-banner-msg">💾 ${count} değişiklik yapıldı — verilerinizi yedekleyin!</span>
+    <button class="btn-export-save" onclick="exportNotes()">💾 Yedekle</button>
   `;
   document.body.appendChild(banner);
 }
