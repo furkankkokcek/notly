@@ -275,8 +275,9 @@ function buildChecklistItemsHtml() {
         <input type="checkbox" ${item.checked ? 'checked' : ''}
           onclick="event.stopPropagation()"
           onchange="_draftItems[${i}].checked=this.checked;
-                    this.closest('.checklist-item-row').classList.toggle('done',this.checked);
-                    _scheduleAutoSave()">
+                    if(this.checked){_draftItems[${i}].checkedAt=Date.now();}else{delete _draftItems[${i}].checkedAt;}
+                    _sortAndRenderChecklist();
+                    _scheduleAutoSave();">
         <input type="text" class="item-text-input"
           value="${escHtml(item.text || '')}" placeholder="Öğe…"
           onclick="event.stopPropagation()"
@@ -287,6 +288,15 @@ function buildChecklistItemsHtml() {
       </div>
     `;
   }).join('');
+}
+
+function _sortAndRenderChecklist() {
+  const unchecked = _draftItems.filter(i => i.type === 'header' || !i.checked);
+  const checked   = _draftItems
+    .filter(i => i.type !== 'header' && i.checked)
+    .sort((a, b) => (a.checkedAt || 0) - (b.checkedAt || 0));
+  _draftItems = [...unchecked, ...checked];
+  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
 }
 
 function activateItemRow(el) {
