@@ -107,40 +107,49 @@ main {
   background: var(--surface);
   border: 1.5px solid var(--accent);
   border-radius: var(--radius);
-  padding: 12px 16px;
+  padding: 14px 16px 16px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 10px;
   font-size: 14px;
   z-index: 150;
   box-shadow: var(--shadow);
+  min-width: 240px;
   max-width: calc(100vw - 32px);
-  white-space: nowrap;
-}
-
-.export-banner button {
-  padding: 6px 14px;
-  background: var(--accent);
-  color: white;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 600;
-  flex-shrink: 0;
-  transition: background 0.15s;
-}
-
-.export-banner button:hover {
-  background: var(--accent-light);
 }
 
 .export-banner .btn-dismiss {
+  align-self: flex-end;
   background: transparent;
   color: var(--text-muted);
-  padding: 4px 8px;
+  padding: 0 4px;
   font-size: 15px;
+  line-height: 1;
+  margin-bottom: -4px;
 }
 
 .export-banner .btn-dismiss:hover {
   color: var(--text);
-  background: var(--surface2);
+}
+
+.export-banner-msg {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.btn-export-save {
+  padding: 10px 28px;
+  background: var(--accent);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 600;
+  transition: background 0.15s;
+  width: 100%;
+}
+
+.btn-export-save:hover {
+  background: var(--accent-light);
 }
