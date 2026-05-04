@@ -263,6 +263,8 @@ function buildChecklistItemsHtml() {
             value="${escHtml(item.text || '')}" placeholder="Bölüm adı…"
             onclick="event.stopPropagation()"
             oninput="_draftItems[${i}].text=this.value;_scheduleAutoSave()">
+          <button class="btn-add-to-section" title="Bu bölüme öğe ekle"
+            onclick="event.stopPropagation();addItemToSection(${i})">+ Öğe</button>
           <div class="item-controls">
             <button class="btn-item-delete" onclick="event.stopPropagation();removeCheckItem(${i})">✕</button>
           </div>
@@ -291,11 +293,23 @@ function buildChecklistItemsHtml() {
 }
 
 function _sortAndRenderChecklist() {
-  const unchecked = _draftItems.filter(i => i.type === 'header' || !i.checked);
-  const checked   = _draftItems
-    .filter(i => i.type !== 'header' && i.checked)
-    .sort((a, b) => (a.checkedAt || 0) - (b.checkedAt || 0));
-  _draftItems = [...unchecked, ...checked];
+  // Group items into sections, sort each section independently
+  const sections = [];
+  let cur = { header: null, items: [] };
+  for (const item of _draftItems) {
+    if (item.type === 'header') { sections.push(cur); cur = { header: item, items: [] }; }
+    else cur.items.push(item);
+  }
+  sections.push(cur);
+
+  const sorted = [];
+  for (const sec of sections) {
+    if (sec.header) sorted.push(sec.header);
+    const unchecked = sec.items.filter(i => !i.checked);
+    const checked   = sec.items.filter(i => i.checked).sort((a, b) => (a.checkedAt || 0) - (b.checkedAt || 0));
+    sorted.push(...unchecked, ...checked);
+  }
+  _draftItems = sorted;
   document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
 }
 
@@ -341,6 +355,24 @@ function addSectionHeader() {
   document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
   const headers = document.querySelectorAll('.section-header-input');
   headers[headers.length - 1]?.focus();
+  if (editingNoteId) saveNote(_currentType, false);
+}
+
+function addItemToSection(headerIdx) {
+  syncChecklistFromDOM();
+  // Find end of this section (next header or end of array)
+  let insertIdx = headerIdx + 1;
+  while (insertIdx < _draftItems.length && _draftItems[insertIdx].type !== 'header') insertIdx++;
+  // Insert before next header (or at end) but before any checked items in this section
+  let insertBefore = insertIdx;
+  for (let j = headerIdx + 1; j < insertIdx; j++) {
+    if (_draftItems[j].checked) { insertBefore = j; break; }
+  }
+  _draftItems.splice(insertBefore, 0, { text: '', checked: false });
+  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+  // Focus the new item's text input
+  const inputIndex = _draftItems.slice(0, insertBefore).filter(x => x.type !== 'header').length;
+  document.querySelectorAll('.item-text-input')[inputIndex]?.focus();
   if (editingNoteId) saveNote(_currentType, false);
 }
 
