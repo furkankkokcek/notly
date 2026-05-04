@@ -275,8 +275,9 @@ function buildChecklistItemsHtml() {
         <input type="checkbox" ${item.checked ? 'checked' : ''}
           onclick="event.stopPropagation()"
           onchange="_draftItems[${i}].checked=this.checked;
-                    this.closest('.checklist-item-row').classList.toggle('done',this.checked);
-                    _scheduleAutoSave()">
+                    if(this.checked){_draftItems[${i}].checkedAt=Date.now();}else{delete _draftItems[${i}].checkedAt;}
+                    _sortAndRenderChecklist();
+                    _scheduleAutoSave();">
         <input type="text" class="item-text-input"
           value="${escHtml(item.text || '')}" placeholder="Öğe…"
           onclick="event.stopPropagation()"
@@ -287,6 +288,15 @@ function buildChecklistItemsHtml() {
       </div>
     `;
   }).join('');
+}
+
+function _sortAndRenderChecklist() {
+  const unchecked = _draftItems.filter(i => i.type === 'header' || !i.checked);
+  const checked   = _draftItems
+    .filter(i => i.type !== 'header' && i.checked)
+    .sort((a, b) => (a.checkedAt || 0) - (b.checkedAt || 0));
+  _draftItems = [...unchecked, ...checked];
+  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
 }
 
 function activateItemRow(el) {
@@ -565,7 +575,7 @@ function saveNote(type, closeAfter = true) {
     noteData.items = _draftItems.filter(i => (i.text || '').trim() || i.type === 'header');
   } else if (type === 'dimension') {
     syncDimFromDOM();
-    noteData.items = _draftItems.filter(i => (i.label || '').trim() || (i.value || '').trim());
+    noteData.items = _draftItems.filter(i => (i.label || '').trim() || (i.en || '').trim());
   }
 
   if (editingNoteId) {
@@ -632,8 +642,8 @@ function parsePasteContent(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l);
   if (!lines.length) return null;
 
-  const numCount  = l => (l.match(/\d+(?:\.\d+)?/g) || []).length;
-  const isDimLine = l => numCount(l) >= 2;
+  const numCount  = l => (l.match(/\d+/g) || []).length;
+  const isDimLine = l => numCount(l) >= 2 || (numCount(l) === 1 && /[xX×]/.test(l));
   const isTitle   = l => /^\D+$/.test(l) && l.length <= 60;
 
   const body     = lines.slice(1);
@@ -654,12 +664,35 @@ function parsePasteContent(text) {
 }
 
 function parseDimLine(line) {
-  const nums     = (line.match(/\d+(?:\.\d+)?/g) || []);
-  const rawLabel = (line.match(/^([^\d]+)/) || ['', ''])[1].trim();
-  const label    = rawLabel
-    .replace(/\s+(en|boy|yükseklik|derinlik|genişlik|uzunluk)\s*$/i, '')
-    .trim() || line;
-  return { label, value: nums[0] || '', unit: nums.slice(1).join(' × ') };
+  // Strip area-result patterns: =7,29m2 / = 28,38 m2 / =9,46m2
+  let s = line.replace(/=\s*[\d,\.]+\s*m?\s*2?/gi, '').trim();
+  // Normalize x/X/× to space, collapse whitespace
+  s = s.replace(/\s*[xX×]\s*/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // Split label from numbers: everything up to last letter before a digit block
+  const match = s.match(/^(.*?[A-Za-zÇçĞğİıÖöŞşÜü])\s+(\d.*)$/);
+  let label   = '';
+  let numPart = s;
+  if (match) {
+    label   = match[1].trim();
+    numPart = match[2];
+  }
+
+  // Clean trailing dimension keywords and punctuation from label
+  label = label
+    .replace(/\s+(en|boy|yükseklik|derinlik|genişlik|uzunluk|maks?\.?)\s*$/i, '')
+    .replace(/[:\-]+$/, '')
+    .trim();
+
+  // Extract integers only (dimensions are whole numbers; skip decimals like 7.29)
+  const nums = (numPart.match(/\d+/g) || []).map(Number).filter(n => n >= 1);
+
+  return {
+    label:    label || s,
+    en:       nums[0] ? String(nums[0]) : '',
+    boy:      nums[1] ? String(nums[1]) : '',
+    derinlik: nums[2] ? String(nums[2]) : '',
+  };
 }
 
 function parsePasteAndImport() {
