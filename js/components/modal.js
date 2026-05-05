@@ -233,7 +233,6 @@ function buildChecklistEditorHtml() {
   return `
     <div id="checklist-editor">
       <div id="checklist-items">${buildChecklistItemsHtml()}</div>
-      <div id="inline-suggestions" class="item-suggestions" style="display:none;position:fixed;z-index:400"></div>
       <div class="add-item-area">
         <div class="add-item-input-wrap">
           <span class="add-item-plus">+</span>
@@ -292,14 +291,17 @@ function buildChecklistItemsHtml() {
                       if(this.checked){_draftItems[${i}].checkedAt=Date.now();}else{delete _draftItems[${i}].checkedAt;}
                       _sortAndRenderChecklist();
                       _scheduleAutoSave();">
-          <input type="text" class="item-text-input"
-            value="${escHtml(item.text || '')}" placeholder="Öğe…"
-            enterkeyhint="next"
-            onclick="event.stopPropagation()"
-            onfocus="_scrollItemIntoView(this)"
-            oninput="_draftItems[${i}].text=this.value;_scheduleAutoSave();onInlineItemInput(event,${i})"
-            onblur="setTimeout(clearInlineSuggestions,150)"
-            onkeydown="onItemKeydown(event,${i})">
+          <div class="item-input-wrap">
+            <input type="text" class="item-text-input"
+              value="${escHtml(item.text || '')}" placeholder="Öğe…"
+              enterkeyhint="next"
+              onclick="event.stopPropagation()"
+              onfocus="_scrollItemIntoView(this)"
+              oninput="_draftItems[${i}].text=this.value;_scheduleAutoSave();onInlineItemInput(event,${i})"
+              onblur="setTimeout(clearInlineSuggestions,150)"
+              onkeydown="onItemKeydown(event,${i})">
+            <div class="item-inline-suggestions"></div>
+          </div>
           <div class="item-controls">
             <button class="btn-item-delete" onclick="event.stopPropagation();removeCheckItem(${i})">✕</button>
           </div>
@@ -584,6 +586,22 @@ function toggleSectionCollapse(idx) {
 // ── Inline item keydown (Enter = new item in same section) ────────────────────
 
 function onItemKeydown(e, idx) {
+  if (e.key === 'Backspace' && e.target.value === '') {
+    e.preventDefault();
+    syncChecklistFromDOM();
+    _draftItems.splice(idx, 1);
+    _renderChecklistItems();
+    const prevIdx = _visibleItemIndices[_visibleItemIndices.indexOf(idx) - 1] ?? null;
+    if (prevIdx !== null) {
+      const domIdx = _visibleItemIndices.indexOf(prevIdx);
+      if (domIdx !== -1) {
+        const rows = document.querySelectorAll('#checklist-items > div');
+        rows[domIdx]?.querySelector('.item-text-input')?.focus();
+      }
+    }
+    if (editingNoteId) saveNote(_currentType, false);
+    return;
+  }
   if (e.key !== 'Enter') return;
   if (document.activeElement !== e.target) return;
   e.preventDefault();
@@ -602,9 +620,9 @@ function onItemKeydown(e, idx) {
 
 function onInlineItemInput(e, idx) {
   const val = (e.target?.value || '').trim();
-  const popup = document.getElementById('inline-suggestions');
+  const popup = e.target?.closest('.item-input-wrap')?.querySelector('.item-inline-suggestions');
   if (!popup) return;
-  if (!val) { popup.style.display = 'none'; return; }
+  if (!val) { popup.innerHTML = ''; return; }
   const q = val.toLowerCase();
   const seen = new Set();
   const matches = [];
@@ -618,13 +636,7 @@ function onInlineItemInput(e, idx) {
     for (const item of note.items || []) { if (item.type !== 'header') push(item.text); if (matches.length >= 8) break; }
     if (matches.length >= 8) break;
   }
-  if (!matches.length) { popup.style.display = 'none'; return; }
-  const rect = e.target.getBoundingClientRect();
-  popup.style.left      = Math.round(rect.left) + 'px';
-  popup.style.top       = Math.round(rect.bottom + 2) + 'px';
-  popup.style.transform = '';
-  popup.style.minWidth  = Math.round(rect.width) + 'px';
-  popup.style.display   = 'block';
+  if (!matches.length) { popup.innerHTML = ''; return; }
   popup.innerHTML = matches.map(s =>
     `<button class="suggestion-item" onmousedown="event.preventDefault();selectInlineSuggestion(${JSON.stringify(s)},${idx})">${escHtml(s)}</button>`
   ).join('');
@@ -639,8 +651,7 @@ function selectInlineSuggestion(text, idx) {
 }
 
 function clearInlineSuggestions() {
-  const el = document.getElementById('inline-suggestions');
-  if (el) el.style.display = 'none';
+  document.querySelectorAll('.item-inline-suggestions').forEach(el => { el.innerHTML = ''; });
 }
 
 // ── Autocomplete ──────────────────────────────────────────────────────────────

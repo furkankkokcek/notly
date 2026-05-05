@@ -253,8 +253,33 @@
   cursor: pointer;
 }
 
-.checklist-item-row .item-text-input {
+.item-input-wrap {
+  position: relative;
   flex: 1;
+  min-width: 0;
+}
+
+.item-inline-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  z-index: 301;
+  max-height: 180px;
+  overflow-y: auto;
+  box-shadow: var(--shadow);
+  margin-top: 2px;
+}
+
+.item-inline-suggestions:empty {
+  display: none;
+}
+
+.checklist-item-row .item-text-input {
+  width: 100%;
   font-size: 15px;
   font-weight: 400;
   background: transparent;
