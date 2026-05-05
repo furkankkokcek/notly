@@ -241,8 +241,7 @@ function buildChecklistEditorHtml() {
             enterkeyhint="done"
             oninput="onNewItemInput(this.value)"
             onkeydown="if(event.key==='Enter'){event.preventDefault();addCheckItem();}
-                       if(event.key==='Escape')clearSuggestions();"
-            onkeyup="if(event.key==='Enter')addCheckItem();">
+                       if(event.key==='Escape')clearSuggestions();">
           <div id="item-suggestions" class="item-suggestions"></div>
         </div>
       </div>
@@ -297,10 +296,10 @@ function buildChecklistItemsHtml() {
             value="${escHtml(item.text || '')}" placeholder="Öğe…"
             enterkeyhint="next"
             onclick="event.stopPropagation()"
+            onfocus="_scrollItemIntoView(this)"
             oninput="_draftItems[${i}].text=this.value;_scheduleAutoSave();onInlineItemInput(event,${i})"
             onblur="setTimeout(clearInlineSuggestions,150)"
-            onkeydown="onItemKeydown(event,${i})"
-            onkeyup="onItemKeydown(event,${i})">
+            onkeydown="onItemKeydown(event,${i})">
           <div class="item-controls">
             <button class="btn-item-delete" onclick="event.stopPropagation();removeCheckItem(${i})">✕</button>
           </div>
@@ -473,6 +472,23 @@ function _onDragEnd(e) {
 
 let _touchDragIdx = null;
 let _touchDragListenersAttached = false;
+let _touchScrollTimer = null;
+const _TOUCH_SCROLL_ZONE = 80; // px from container edge to trigger scroll
+const _TOUCH_SCROLL_SPEED = 8; // px per frame
+
+function _startTouchScroll(container, direction) {
+  _stopTouchScroll();
+  _touchScrollTimer = setInterval(() => {
+    container.scrollBy({ top: direction * _TOUCH_SCROLL_SPEED });
+  }, 16);
+}
+
+function _stopTouchScroll() {
+  if (_touchScrollTimer !== null) {
+    clearInterval(_touchScrollTimer);
+    _touchScrollTimer = null;
+  }
+}
 
 function _initTouchDrag() {
   // Bind per-handle touchstart (re-runs after every render)
@@ -494,6 +510,20 @@ function _initTouchDrag() {
     if (_touchDragIdx === null) return;
     e.preventDefault();
     const y = e.touches[0].clientY;
+
+    // Auto-scroll when near top/bottom edge of modal sheet
+    const container = document.querySelector('#note-modal .ms');
+    if (container) {
+      const cr = container.getBoundingClientRect();
+      if (y < cr.top + _TOUCH_SCROLL_ZONE) {
+        _startTouchScroll(container, -1);
+      } else if (y > cr.bottom - _TOUCH_SCROLL_ZONE) {
+        _startTouchScroll(container, 1);
+      } else {
+        _stopTouchScroll();
+      }
+    }
+
     document.querySelectorAll('#checklist-items > div').forEach(r => {
       r.classList.remove('drag-over', 'drag-over-section');
       const rect = r.getBoundingClientRect();
@@ -505,6 +535,7 @@ function _initTouchDrag() {
 
   document.addEventListener('touchend', e => {
     if (_touchDragIdx === null) return;
+    _stopTouchScroll();
     const y = e.changedTouches[0].clientY;
     const rows = [...document.querySelectorAll('#checklist-items > div')];
     const targetRow = rows.find(r => {
@@ -529,6 +560,16 @@ function _renderChecklistItems() {
   if (!el) return;
   el.innerHTML = buildChecklistItemsHtml();
   _initTouchDrag();
+}
+
+function _scrollItemIntoView(input) {
+  const row = input.closest('#checklist-items > div');
+  const container = document.querySelector('#note-modal .ms');
+  if (!row || !container) return;
+  const rowTop = row.getBoundingClientRect().top;
+  const containerTop = container.getBoundingClientRect().top;
+  const scrollOffset = rowTop - containerTop - 60;
+  if (scrollOffset > 0) container.scrollBy({ top: scrollOffset, behavior: 'smooth' });
 }
 
 // ── Collapse / expand sections ────────────────────────────────────────────────
@@ -580,8 +621,8 @@ function onInlineItemInput(e, idx) {
   if (!matches.length) { popup.style.display = 'none'; return; }
   const rect = e.target.getBoundingClientRect();
   popup.style.left      = Math.round(rect.left) + 'px';
-  popup.style.top       = Math.round(rect.top - 2) + 'px';
-  popup.style.transform = 'translateY(-100%)';
+  popup.style.top       = Math.round(rect.bottom + 2) + 'px';
+  popup.style.transform = '';
   popup.style.minWidth  = Math.round(rect.width) + 'px';
   popup.style.display   = 'block';
   popup.innerHTML = matches.map(s =>
