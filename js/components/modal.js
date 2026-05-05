@@ -638,11 +638,17 @@ function onInlineItemInput(e, idx) {
   }
   if (!matches.length) { popup.innerHTML = ''; return; }
   popup.innerHTML = matches.map(s =>
-    `<button class="suggestion-item" onmousedown="event.preventDefault();selectInlineSuggestion(${JSON.stringify(s)},${idx})">${escHtml(s)}</button>`
+    `<button class="suggestion-item"
+      ontouchend="event.preventDefault();selectInlineSuggestion(${JSON.stringify(s)},${idx})"
+      onmousedown="event.preventDefault();selectInlineSuggestion(${JSON.stringify(s)},${idx})">${escHtml(s)}</button>`
   ).join('');
 }
 
+let _lastInlineSelectAt = 0;
 function selectInlineSuggestion(text, idx) {
+  const now = Date.now();
+  if (now - _lastInlineSelectAt < 400) return;
+  _lastInlineSelectAt = now;
   syncChecklistFromDOM();
   if (_draftItems[idx]) _draftItems[idx].text = text;
   clearInlineSuggestions();
