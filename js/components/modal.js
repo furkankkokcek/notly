@@ -241,8 +241,7 @@ function buildChecklistEditorHtml() {
             enterkeyhint="done"
             oninput="onNewItemInput(this.value)"
             onkeydown="if(event.key==='Enter'){event.preventDefault();addCheckItem();}
-                       if(event.key==='Escape')clearSuggestions();"
-            onkeyup="if(event.key==='Enter')addCheckItem();">
+                       if(event.key==='Escape')clearSuggestions();">
           <div id="item-suggestions" class="item-suggestions"></div>
         </div>
       </div>
@@ -297,10 +296,10 @@ function buildChecklistItemsHtml() {
             value="${escHtml(item.text || '')}" placeholder="Öğe…"
             enterkeyhint="next"
             onclick="event.stopPropagation()"
+            onfocus="_scrollItemIntoView(this)"
             oninput="_draftItems[${i}].text=this.value;_scheduleAutoSave();onInlineItemInput(event,${i})"
             onblur="setTimeout(clearInlineSuggestions,150)"
-            onkeydown="onItemKeydown(event,${i})"
-            onkeyup="onItemKeydown(event,${i})">
+            onkeydown="onItemKeydown(event,${i})">
           <div class="item-controls">
             <button class="btn-item-delete" onclick="event.stopPropagation();removeCheckItem(${i})">✕</button>
           </div>
@@ -531,6 +530,16 @@ function _renderChecklistItems() {
   _initTouchDrag();
 }
 
+function _scrollItemIntoView(input) {
+  const row = input.closest('#checklist-items > div');
+  const container = document.querySelector('#note-modal .ms');
+  if (!row || !container) return;
+  const rowTop = row.getBoundingClientRect().top;
+  const containerTop = container.getBoundingClientRect().top;
+  const scrollOffset = rowTop - containerTop - 60;
+  if (scrollOffset > 0) container.scrollBy({ top: scrollOffset, behavior: 'smooth' });
+}
+
 // ── Collapse / expand sections ────────────────────────────────────────────────
 
 function toggleSectionCollapse(idx) {
@@ -580,8 +589,8 @@ function onInlineItemInput(e, idx) {
   if (!matches.length) { popup.style.display = 'none'; return; }
   const rect = e.target.getBoundingClientRect();
   popup.style.left      = Math.round(rect.left) + 'px';
-  popup.style.top       = Math.round(rect.top - 2) + 'px';
-  popup.style.transform = 'translateY(-100%)';
+  popup.style.top       = Math.round(rect.bottom + 2) + 'px';
+  popup.style.transform = '';
   popup.style.minWidth  = Math.round(rect.width) + 'px';
   popup.style.display   = 'block';
   popup.innerHTML = matches.map(s =>

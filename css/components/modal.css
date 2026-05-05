@@ -480,8 +480,7 @@
 /* Autocomplete suggestions */
 .item-suggestions {
   position: absolute;
-  bottom: 100%;
-  top: auto;
+  top: 100%;
   left: 0;
   right: 0;
   background: var(--surface);
@@ -491,7 +490,7 @@
   max-height: 180px;
   overflow-y: auto;
   box-shadow: var(--shadow);
-  margin-bottom: 2px;
+  margin-top: 2px;
 }
 
 .suggestion-item {
