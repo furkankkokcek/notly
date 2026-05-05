@@ -50,7 +50,7 @@ function setChecklistMode(mode) {
   _draftItems = mode === 'shopping'
     ? DEFAULT_SHOPPING_CATEGORIES.map(text => ({ type: 'header', text }))
     : [];
-  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+  _renderChecklistItems();
 }
 
 // ── Open / close ──────────────────────────────────────────────────────────────
@@ -150,9 +150,9 @@ function renderNoteEditor(type, note = null) {
 
   document.getElementById('note-modal-content').innerHTML = `
     <div class="modal-header">
-      <button class="btn-back" onclick="${isEdit ? 'closeNoteModal()' : 'showTypeSelector()'}">
-        ${isEdit ? '✕' : '←'}
-      </button>
+      ${isEdit
+        ? '<div class="btn-back-placeholder"></div>'
+        : '<button class="btn-back" onclick="showTypeSelector()">←</button>'}
       <h2>${isEdit ? 'Notu Düzenle' : 'Yeni Not'}</h2>
       <button class="btn-close" onclick="closeNoteModal()">✕</button>
     </div>
@@ -175,6 +175,7 @@ function renderNoteEditor(type, note = null) {
 
   _applyModalColor(_draftColor);
   document.getElementById('note-title').focus();
+  if (type === 'checklist') _initTouchDrag();
 }
 
 // ── Color picker ──────────────────────────────────────────────────────────────
@@ -237,9 +238,11 @@ function buildChecklistEditorHtml() {
         <div class="add-item-input-wrap">
           <span class="add-item-plus">+</span>
           <input type="text" id="new-item-input" placeholder="Liste öğesi"
+            enterkeyhint="done"
             oninput="onNewItemInput(this.value)"
             onkeydown="if(event.key==='Enter'){event.preventDefault();addCheckItem();}
-                       if(event.key==='Escape')clearSuggestions();">
+                       if(event.key==='Escape')clearSuggestions();"
+            onkeyup="if(event.key==='Enter')addCheckItem();">
           <div id="item-suggestions" class="item-suggestions"></div>
         </div>
       </div>
@@ -254,7 +257,7 @@ function buildChecklistItemsHtml() {
   const parts = [];
 
   _draftItems.forEach((item, i) => {
-    const dragAttrs = `draggable="true"
+    const dragAttrs = `draggable="true" data-idx="${i}"
       ondragstart="_onDragStart(event,${i})"
       ondragover="_onDragOver(event,${i})"
       ondragleave="_onDragLeave(event)"
@@ -292,10 +295,12 @@ function buildChecklistItemsHtml() {
                       _scheduleAutoSave();">
           <input type="text" class="item-text-input"
             value="${escHtml(item.text || '')}" placeholder="Öğe…"
+            enterkeyhint="next"
             onclick="event.stopPropagation()"
             oninput="_draftItems[${i}].text=this.value;_scheduleAutoSave();onInlineItemInput(event,${i})"
             onblur="setTimeout(clearInlineSuggestions,150)"
-            onkeydown="onItemKeydown(event,${i})">
+            onkeydown="onItemKeydown(event,${i})"
+            onkeyup="onItemKeydown(event,${i})">
           <div class="item-controls">
             <button class="btn-item-delete" onclick="event.stopPropagation();removeCheckItem(${i})">✕</button>
           </div>
@@ -325,7 +330,7 @@ function _sortAndRenderChecklist() {
     sorted.push(...unchecked, ...checked);
   }
   _draftItems = sorted;
-  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+  _renderChecklistItems();
 }
 
 function activateItemRow(el) {
@@ -358,7 +363,7 @@ function addCheckItem() {
   if (!text) { input.focus(); return; }
   syncChecklistFromDOM();
   _draftItems.push({ text, checked: false });
-  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+  _renderChecklistItems();
   input.value = '';
   clearSuggestions();
   input.focus();
@@ -368,7 +373,7 @@ function addCheckItem() {
 function addSectionHeader() {
   syncChecklistFromDOM();
   _draftItems.push({ text: '', type: 'header' });
-  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+  _renderChecklistItems();
   const headers = document.querySelectorAll('.section-header-input');
   headers[headers.length - 1]?.focus();
   if (editingNoteId) saveNote(_currentType, false);
@@ -385,7 +390,7 @@ function addItemToSection(headerIdx) {
     if (_draftItems[j].checked) { insertBefore = j; break; }
   }
   _draftItems.splice(insertBefore, 0, { text: '', checked: false });
-  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+  _renderChecklistItems();
   const domIdx = _visibleItemIndices.indexOf(insertBefore);
   if (domIdx !== -1) {
     const rows = document.querySelectorAll('#checklist-items > div');
@@ -397,7 +402,7 @@ function addItemToSection(headerIdx) {
 function removeCheckItem(idx) {
   syncChecklistFromDOM();
   _draftItems.splice(idx, 1);
-  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+  _renderChecklistItems();
   if (editingNoteId) saveNote(_currentType, false);
 }
 
@@ -453,7 +458,7 @@ function _onDrop(e, targetIdx) {
 
   _dragIdx = null;
   _dragSectionEnd = null;
-  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+  _renderChecklistItems();
   if (editingNoteId) saveNote(_currentType, false);
 }
 
@@ -464,12 +469,74 @@ function _onDragEnd(e) {
   _dragSectionEnd = null;
 }
 
+// ── Touch drag-drop support ───────────────────────────────────────────────────
+
+let _touchDragIdx = null;
+let _touchDragListenersAttached = false;
+
+function _initTouchDrag() {
+  // Bind per-handle touchstart (re-runs after every render)
+  document.querySelectorAll('#checklist-items .drag-handle').forEach(handle => {
+    handle.addEventListener('touchstart', e => {
+      const row = handle.closest('[data-idx]');
+      if (!row) return;
+      _touchDragIdx = +row.dataset.idx;
+      row.classList.add('dragging');
+      e.preventDefault();
+    }, { passive: false });
+  });
+
+  // Document-level move/end listeners registered only once
+  if (_touchDragListenersAttached) return;
+  _touchDragListenersAttached = true;
+
+  document.addEventListener('touchmove', e => {
+    if (_touchDragIdx === null) return;
+    e.preventDefault();
+    const y = e.touches[0].clientY;
+    document.querySelectorAll('#checklist-items > div').forEach(r => {
+      r.classList.remove('drag-over', 'drag-over-section');
+      const rect = r.getBoundingClientRect();
+      if (y >= rect.top && y <= rect.bottom) {
+        r.classList.add(r.classList.contains('section-header-row') ? 'drag-over-section' : 'drag-over');
+      }
+    });
+  }, { passive: false });
+
+  document.addEventListener('touchend', e => {
+    if (_touchDragIdx === null) return;
+    const y = e.changedTouches[0].clientY;
+    const rows = [...document.querySelectorAll('#checklist-items > div')];
+    const targetRow = rows.find(r => {
+      const rect = r.getBoundingClientRect();
+      return y >= rect.top && y <= rect.bottom;
+    });
+    const targetIdx = targetRow ? +targetRow.dataset.idx : null;
+    rows.forEach(r => r.classList.remove('dragging', 'drag-over', 'drag-over-section'));
+    if (targetIdx !== null && targetIdx !== _touchDragIdx) {
+      syncChecklistFromDOM();
+      const [item] = _draftItems.splice(_touchDragIdx, 1);
+      _draftItems.splice(targetIdx > _touchDragIdx ? targetIdx - 1 : targetIdx, 0, item);
+      _renderChecklistItems();
+      if (editingNoteId) saveNote(_currentType, false);
+    }
+    _touchDragIdx = null;
+  });
+}
+
+function _renderChecklistItems() {
+  const el = document.getElementById('checklist-items');
+  if (!el) return;
+  el.innerHTML = buildChecklistItemsHtml();
+  _initTouchDrag();
+}
+
 // ── Collapse / expand sections ────────────────────────────────────────────────
 
 function toggleSectionCollapse(idx) {
   syncChecklistFromDOM();
   _draftItems[idx].collapsed = !_draftItems[idx].collapsed;
-  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+  _renderChecklistItems();
   if (editingNoteId) saveNote(_currentType, false);
 }
 
@@ -477,10 +544,11 @@ function toggleSectionCollapse(idx) {
 
 function onItemKeydown(e, idx) {
   if (e.key !== 'Enter') return;
+  if (document.activeElement !== e.target) return;
   e.preventDefault();
   syncChecklistFromDOM();
   _draftItems.splice(idx + 1, 0, { text: '', checked: false });
-  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+  _renderChecklistItems();
   const domIdx = _visibleItemIndices.indexOf(idx + 1);
   if (domIdx !== -1) {
     const rows = document.querySelectorAll('#checklist-items > div');
@@ -511,10 +579,11 @@ function onInlineItemInput(e, idx) {
   }
   if (!matches.length) { popup.style.display = 'none'; return; }
   const rect = e.target.getBoundingClientRect();
-  popup.style.left    = Math.round(rect.left) + 'px';
-  popup.style.top     = Math.round(rect.bottom + 2) + 'px';
-  popup.style.minWidth = Math.round(rect.width) + 'px';
-  popup.style.display = 'block';
+  popup.style.left      = Math.round(rect.left) + 'px';
+  popup.style.top       = Math.round(rect.top - 2) + 'px';
+  popup.style.transform = 'translateY(-100%)';
+  popup.style.minWidth  = Math.round(rect.width) + 'px';
+  popup.style.display   = 'block';
   popup.innerHTML = matches.map(s =>
     `<button class="suggestion-item" onmousedown="event.preventDefault();selectInlineSuggestion(${JSON.stringify(s)},${idx})">${escHtml(s)}</button>`
   ).join('');
@@ -524,7 +593,7 @@ function selectInlineSuggestion(text, idx) {
   syncChecklistFromDOM();
   if (_draftItems[idx]) _draftItems[idx].text = text;
   clearInlineSuggestions();
-  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+  _renderChecklistItems();
   if (editingNoteId) saveNote(_currentType, false);
 }
 
@@ -572,7 +641,7 @@ function showSuggestions(matches) {
   const el = document.getElementById('item-suggestions');
   if (!el) return;
   el.innerHTML = matches.map(s =>
-    `<button class="suggestion-item" onclick="selectSuggestion('${escHtml(s)}')">${escHtml(s)}</button>`
+    `<button class="suggestion-item" onmousedown="event.preventDefault();selectSuggestion(${JSON.stringify(s)})">${escHtml(s)}</button>`
   ).join('');
 }
 
@@ -584,7 +653,7 @@ function clearSuggestions() {
 function selectSuggestion(text) {
   syncChecklistFromDOM();
   _draftItems.push({ text, checked: false });
-  document.getElementById('checklist-items').innerHTML = buildChecklistItemsHtml();
+  _renderChecklistItems();
   const input = document.getElementById('new-item-input');
   if (input) { input.value = ''; input.focus(); }
   clearSuggestions();

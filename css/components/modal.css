@@ -28,6 +28,11 @@
   color: var(--text);
 }
 
+.btn-back-placeholder {
+  width: 30px;
+  flex-shrink: 0;
+}
+
 /* Type selector */
 .type-selector {
   display: flex;
@@ -475,7 +480,8 @@
 /* Autocomplete suggestions */
 .item-suggestions {
   position: absolute;
-  top: 100%;
+  bottom: 100%;
+  top: auto;
   left: 0;
   right: 0;
   background: var(--surface);
@@ -485,7 +491,7 @@
   max-height: 180px;
   overflow-y: auto;
   box-shadow: var(--shadow);
-  margin-top: 2px;
+  margin-bottom: 2px;
 }
 
 .suggestion-item {
