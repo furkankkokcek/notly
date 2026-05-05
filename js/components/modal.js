@@ -472,6 +472,23 @@ function _onDragEnd(e) {
 
 let _touchDragIdx = null;
 let _touchDragListenersAttached = false;
+let _touchScrollTimer = null;
+const _TOUCH_SCROLL_ZONE = 80; // px from container edge to trigger scroll
+const _TOUCH_SCROLL_SPEED = 8; // px per frame
+
+function _startTouchScroll(container, direction) {
+  _stopTouchScroll();
+  _touchScrollTimer = setInterval(() => {
+    container.scrollBy({ top: direction * _TOUCH_SCROLL_SPEED });
+  }, 16);
+}
+
+function _stopTouchScroll() {
+  if (_touchScrollTimer !== null) {
+    clearInterval(_touchScrollTimer);
+    _touchScrollTimer = null;
+  }
+}
 
 function _initTouchDrag() {
   // Bind per-handle touchstart (re-runs after every render)
@@ -493,6 +510,20 @@ function _initTouchDrag() {
     if (_touchDragIdx === null) return;
     e.preventDefault();
     const y = e.touches[0].clientY;
+
+    // Auto-scroll when near top/bottom edge of modal sheet
+    const container = document.querySelector('#note-modal .ms');
+    if (container) {
+      const cr = container.getBoundingClientRect();
+      if (y < cr.top + _TOUCH_SCROLL_ZONE) {
+        _startTouchScroll(container, -1);
+      } else if (y > cr.bottom - _TOUCH_SCROLL_ZONE) {
+        _startTouchScroll(container, 1);
+      } else {
+        _stopTouchScroll();
+      }
+    }
+
     document.querySelectorAll('#checklist-items > div').forEach(r => {
       r.classList.remove('drag-over', 'drag-over-section');
       const rect = r.getBoundingClientRect();
@@ -504,6 +535,7 @@ function _initTouchDrag() {
 
   document.addEventListener('touchend', e => {
     if (_touchDragIdx === null) return;
+    _stopTouchScroll();
     const y = e.changedTouches[0].clientY;
     const rows = [...document.querySelectorAll('#checklist-items > div')];
     const targetRow = rows.find(r => {
