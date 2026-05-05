@@ -636,12 +636,22 @@ function onInlineItemInput(e, idx) {
     for (const item of note.items || []) { if (item.type !== 'header') push(item.text); if (matches.length >= 8) break; }
     if (matches.length >= 8) break;
   }
-  if (!matches.length) { popup.innerHTML = ''; return; }
-  popup.innerHTML = matches.map(s =>
-    `<button class="suggestion-item"
-      ontouchend="event.preventDefault();selectInlineSuggestion(${JSON.stringify(s)},${idx})"
-      onmousedown="event.preventDefault();selectInlineSuggestion(${JSON.stringify(s)},${idx})">${escHtml(s)}</button>`
-  ).join('');
+popup.innerHTML = matches.map((s, i) =>
+  `<button class="suggestion-item" data-text="${encodeURIComponent(s)}" data-idx="${idx}">
+    ${escHtml(s)}
+  </button>`
+).join('');
+
+popup.querySelectorAll('.suggestion-item').forEach(btn => {
+  btn.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    selectInlineSuggestion(decodeURIComponent(btn.dataset.text), +btn.dataset.idx);
+  });
+  btn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    selectInlineSuggestion(decodeURIComponent(btn.dataset.text), +btn.dataset.idx);
+  });
+});
 }
 
 let _lastInlineSelectAt = 0;
@@ -698,9 +708,19 @@ function onNewItemInput(val) {
 function showSuggestions(matches) {
   const el = document.getElementById('item-suggestions');
   if (!el) return;
+
   el.innerHTML = matches.map(s =>
-    `<button class="suggestion-item" onmousedown="event.preventDefault();selectSuggestion(${JSON.stringify(s)})">${escHtml(s)}</button>`
+    `<button class="suggestion-item" data-text="${encodeURIComponent(s)}">
+      ${escHtml(s)}
+    </button>`
   ).join('');
+
+  el.querySelectorAll('.suggestion-item').forEach(btn => {
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      selectSuggestion(decodeURIComponent(btn.dataset.text));
+    });
+  });
 }
 
 function clearSuggestions() {
