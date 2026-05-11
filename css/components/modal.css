@@ -524,6 +524,9 @@
   cursor: pointer;
   transition: background 0.1s;
   border-bottom: 1px solid var(--border);
+  touch-action: manipulation;
+  width: 100%;
+  text-align: left;
 }
 
 .suggestion-item:last-child {

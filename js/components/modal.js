@@ -134,7 +134,7 @@ function renderNoteEditor(type, note = null) {
 
   let body = '';
   if (type === 'text') {
-    body = `<textarea id="note-content" placeholder="Bir şeyler yaz..." rows="8"
+    body = `<textarea id="note-content" placeholder="Bir şeyler yaz..."
       ${isEdit ? 'oninput="_scheduleAutoSave()"' : ''}
     >${note ? escHtml(note.content || '') : ''}</textarea>`;
   } else if (type === 'checklist') {
@@ -173,6 +173,8 @@ function renderNoteEditor(type, note = null) {
     </div>
   `;
 
+  const ms = document.querySelector('#note-modal .ms');
+  if (ms) ms.classList.toggle('ms--text', type === 'text');
   _applyModalColor(_draftColor);
   document.getElementById('note-title').focus();
   if (type === 'checklist') _initTouchDrag();
@@ -298,7 +300,7 @@ function buildChecklistItemsHtml() {
               onclick="event.stopPropagation()"
               onfocus="_scrollItemIntoView(this)"
               oninput="_draftItems[${i}].text=this.value;_scheduleAutoSave();onInlineItemInput(event,${i})"
-              onblur="setTimeout(clearInlineSuggestions,150)"
+              onblur="setTimeout(clearInlineSuggestions,500)"
               onkeydown="onItemKeydown(event,${i})">
             <div class="item-inline-suggestions"></div>
           </div>
@@ -638,17 +640,11 @@ function onInlineItemInput(e, idx) {
   }
   if (!matches.length) { popup.innerHTML = ''; return; }
   popup.innerHTML = matches.map(s =>
-    `<button class="suggestion-item"
-      ontouchend="event.preventDefault();selectInlineSuggestion(${JSON.stringify(s)},${idx})"
-      onmousedown="event.preventDefault();selectInlineSuggestion(${JSON.stringify(s)},${idx})">${escHtml(s)}</button>`
+    `<button class="suggestion-item" onclick="event.stopPropagation();selectInlineSuggestion(${JSON.stringify(s)},${idx})">${escHtml(s)}</button>`
   ).join('');
 }
 
-let _lastInlineSelectAt = 0;
 function selectInlineSuggestion(text, idx) {
-  const now = Date.now();
-  if (now - _lastInlineSelectAt < 400) return;
-  _lastInlineSelectAt = now;
   syncChecklistFromDOM();
   if (_draftItems[idx]) _draftItems[idx].text = text;
   clearInlineSuggestions();
