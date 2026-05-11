@@ -30,7 +30,7 @@ function renderCard(note) {
 
 function buildPreview(note) {
   if (note.type === 'text') {
-    return escHtml((note.content || '').slice(0, 120));
+    return escHtml((note.content || '').slice(0, 120)).replace(/\n/g, '<br>');
   }
 
   if (note.type === 'checklist') {
